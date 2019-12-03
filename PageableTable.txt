@@ -1,0 +1,130 @@
+// ===================
+//  - Spring Backend -
+// ===================
+
+/* -> CONTROLLER  */
+
+    @GetMapping("/rubrogasto/page/{page}")
+    public Page<PGRubro> index(@PathVariable("page") Integer page) {
+        Pageable pageable = PageRequest.of(page, 10);
+        return Service.findByPage(pageable);
+    }
+
+    @GetMapping("/rubrogasto/search/{key}/page/{page}")
+    public Slice<PGRubro> search(@PathVariable("key") String key, @PathVariable("page") int page) {
+        Pageable pageable = PageRequest.of(page, 10);
+        return Service.search(key, pageable);
+    }
+
+/* -> SERVICE  */
+
+    @Override
+    @Transactional(readOnly=true)
+    public Page<PGRubro> findByPage(Pageable pageable) {
+        return Dao.findAll(pageable);
+    }
+
+    @Override
+    public Page<PGRubro> search(String key, Pageable pageable) { return Dao.search(key, pageable); }
+
+
+/* -> SERVICE INTERFACE  */
+
+	Page<PGRubro> findByPage(Pageable pageable);
+    Page<PGRubro> search(String key, Pageable pageable);
+
+
+/* -> SERVICE INTERFACE  */
+
+	@Query(value="SELECT * FROM PG_Rubro WHERE PG_Rubro.ctaCod LIKE %?1% OR PG_Rubro.ctaDes LIKE %?1%", nativeQuery = true)
+    Page<PGRubro> search(@Param("key") String key, Pageable pageable);
+
+
+
+// ===================
+//	- Paginator.html - 
+// ===================
+
+<input type="text" [(ngModel)]="searchInput" (keyup)="searching($event);"
+class="form-control form-control-sm" style="margin: 0px;" placeholder="Buscar por...">
+
+
+<mat-paginator #paginator [length]="totalLength" [pageSize]="limit" [pageSizeOptions]="pageLimit"
+(page)="changePage($event)">
+</mat-paginator>
+
+//
+
+// ==================
+//	- Paginator.ts - 
+// ==================
+
+
+  public searchInput: string = '';
+  limit:number = 10;
+  skip:number = 0;
+  totalLength:number = 0;
+  pageIndex : number = 0;
+  pageLimit:number[] = [10]; 
+
+
+  // (keyup)
+  public searching(key: any) {
+    console.log(key);
+    if (key.keyCode === 13 && this.searchInput !== '') {
+      console.log(this.searchInput);
+      console.log(this.searchInput.toString().length);
+      if (this.searchInput.toString().length > 1) { this.search(this.searchInput.toString()); }
+    } else if (key.keyCode === 13 && this.searchInput === '') {
+      this.getComplains()
+    }
+  }
+
+
+  public search(searchValue: string) {
+    this.AppService.get(`rubrogasto/search/${searchValue}/page/${this.pageIndex}`).subscribe(
+      (data: any) => {
+        console.log(data);
+        if (data.length === 0) {
+          this.AppService.showError('No se han encontrado resultados');
+        } else {
+          this.dataSource = new MatTableDataSource<any>(data.content);
+          this.totalLength = data['totalElements'];
+          this.getFuentes(data);
+        }
+      }
+    );
+  }
+
+
+
+  public getComplains(addNew:boolean=false){
+    let data;
+     this.getData(this.limit,this.skip,(data_) => {
+      if(data_){
+        data = data_;
+        setTimeout(() => {
+
+        })
+      }
+
+     });
+
+  }
+
+
+getData(limit:number,skip:number,callback){
+    this.AppService.get(`rubrogasto/page/${this.pageIndex}`).subscribe(data => {
+      if(data){
+        console.log(data);
+        console.log(data['content']);
+        this.dataSource = new MatTableDataSource<any>(data['content']);
+        this.dataSource.sort = this.sort;
+        this.totalLength = data['totalElements'];
+        callback(data);
+      }
+    }, err => {
+      console.log('err',err);
+
+    });
+  }
